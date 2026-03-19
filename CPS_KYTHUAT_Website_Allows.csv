@@ -54,6 +54,7 @@
 *.larksuite.com,
 *.anker.com,
 *.smember.com.vn,
+*.192.168.1.*,
 file:///C:/Users,
 https://admin.google.com,
 https://support.google.com,
