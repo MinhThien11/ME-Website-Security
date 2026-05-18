@@ -1,0 +1,1 @@
+Start-Process "C:\Program Files\WinRAR\uninstall.exe" -ArgumentList "/S" -Waits
