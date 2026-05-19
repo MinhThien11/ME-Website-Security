@@ -102,8 +102,21 @@ function Find-Button {
     )
     $elapsed = 0
     while ($elapsed -lt $timeoutSec) {
-        $btn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
-        if ($btn) { return $btn }
+        try {
+            # Tim tat ca button co ten nay
+            $btn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+            if ($btn) {
+                # Kiem tra IsEnabled - cho den khi enabled moi click
+                $isEnabled = $btn.GetCurrentPropertyValue(
+                    [System.Windows.Automation.AutomationElement]::IsEnabledProperty)
+                if ($isEnabled -eq $true) { return $btn }
+                Write-Host -NoNewline "~" -ForegroundColor DarkGray
+            } else {
+                Write-Host -NoNewline "." -ForegroundColor DarkGray
+            }
+        } catch {
+            Write-Host -NoNewline "?" -ForegroundColor DarkGray
+        }
         Start-Sleep -Seconds 2
         $elapsed += 2
     }
@@ -164,36 +177,52 @@ if (-not $win) {
 Write-Host "[OK] Da tim thay cua so Setup!" -ForegroundColor Green
 Start-Sleep -Seconds 3
 
+# Helper: lay lai window handle (setup co the re-render)
+function Get-SetupWindow {
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    foreach ($title in @("Windows 10 Setup", "Windows 11 Setup")) {
+        $cond = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty, $title)
+        $w = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $cond)
+        if ($w) { return $w }
+    }
+    return $null
+}
+
 # ── Man hinh 1: "Install Windows 10" → click Next ──
-Write-Host "[INFO] Man 1: Tim nut Next..." -ForegroundColor Yellow
-Start-Sleep -Seconds 5
-$btn = Find-Button -root $win -name "Next" -timeoutSec 60
+Write-Host "`n[INFO] Man 1: Cho nut Next active (toi da 90 giay)..." -ForegroundColor Yellow
+$win = Get-SetupWindow
+$btn = Find-Button -root $win -name "Next" -timeoutSec 90
+if (-not $btn) {
+    # Refresh window ref va thu lai
+    $win = Get-SetupWindow
+    $btn = Find-Button -root $win -name "Next" -timeoutSec 30
+}
 Click-Button -btn $btn -label "Next (Man 1 - Install Windows)"
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
 
 # ── Man hinh 2: "License terms" → click Accept ──
-Write-Host "[INFO] Man 2: Tim nut Accept..." -ForegroundColor Yellow
-Start-Sleep -Seconds 5
+Write-Host "[INFO] Man 2: Cho nut Accept (toi da 60 giay)..." -ForegroundColor Yellow
+$win = Get-SetupWindow
 $btn = Find-Button -root $win -name "Accept" -timeoutSec 60
 Click-Button -btn $btn -label "Accept (Man 2 - EULA)"
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
 
 # ── Man hinh 3: "Choose what to keep" → co the hien hoac skip ──
-# Setup doi khi tu skip man nay, nen xu ly ca 2 truong hop
-Write-Host "[INFO] Man 3/4: Dang cho man Ready to install hoac Choose what to keep..." -ForegroundColor Yellow
-Start-Sleep -Seconds 8
-
-# Thu click Next neu man 3 hien (timeout ngan 15s)
-$btnNext = Find-Button -root $win -name "Next" -timeoutSec 15
+Write-Host "[INFO] Man 3: Kiem tra neu hien (cho 20 giay)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 5
+$win = Get-SetupWindow
+$btnNext = Find-Button -root $win -name "Next" -timeoutSec 20
 if ($btnNext) {
     Click-Button -btn $btnNext -label "Next (Man 3 - Keep files)"
-    Write-Host "[INFO] Da click Next o man 3, cho man 4..." -ForegroundColor Yellow
+    Write-Host "[INFO] Da click Next man 3." -ForegroundColor Yellow
     Start-Sleep -Seconds 8
 }
 
 # ── Man hinh 4: "Ready to install" → click Install ──
-Write-Host "[INFO] Man 4: Tim nut Install (toi da 2 phut)..." -ForegroundColor Yellow
-$btn = Find-Button -root $win -name "Install" -timeoutSec 120
+Write-Host "[INFO] Man 4: Cho nut Install (toi da 3 phut)..." -ForegroundColor Yellow
+$win = Get-SetupWindow
+$btn = Find-Button -root $win -name "Install" -timeoutSec 180
 Click-Button -btn $btn -label "Install (Man 4 - Ready to install)"
 
 Write-Host "`n[OK] Da click qua 4 man hinh! Setup dang cai dat..." -ForegroundColor Green
